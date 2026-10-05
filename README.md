@@ -1,62 +1,26 @@
-# Nines Bond
+# Pharos
 
-GenLayer SLA outage credit. A customer prepays a month. Two public status pages must agree that an incident hit the named service on `incident_date`.
+Pharos is a monthly outage-credit cover on GenLayer StudioNet. A customer prepays a monthly premium and specifies a target service, a covered calendar period, an incident date, and two independent public status page URLs. If both status sources confirm the incident on or after the resolve date, the agreed credit is paid to the customer and any remaining premium goes to the provider. If the outage is not confirmed, the provider retains the premium. If adjudication cannot reach consensus, the cover remains active, and a timeout refund opens the day after the resolve date to return the full premium to the customer.
 
-- Explorer: https://explorer-studio.genlayer.com/address/0x0ce9eF532FF4572c954232FC2b1e2930A2f25847
-- Contract address: 0x0ce9eF532FF4572c954232FC2b1e2930A2f25847
+## Contract Details
 
-Source: `src/Ninesbond.py`. Direct tests: `test/direct/test_sla_outage_credit.py`.
+- Chain: GenLayer StudioNet (Chain ID 61999, hex 0xf22f)
+- Contract Address: `0xDEd88EaA439d726e40570cD92C8A4dfD21119312`
+- Explorer: [https://explorer-studio.genlayer.com/address/0xDEd88EaA439d726e40570cD92C8A4dfD21119312](https://explorer-studio.genlayer.com/address/0xDEd88EaA439d726e40570cD92C8A4dfD21119312)
 
-## What the contract does
+## Methods
 
-A customer buys cover against a provider. The policy stores the provider, service, covered period, incident date, `resolve_after`, `refund_after`, credit, premium, and two status URLs.
+- `buy_cover(provider, service, period_start, period_end, incident_date, resolve_after, credit, status_url_a, status_url_b)`: Creates and funds an outage cover with the attached premium value.
+- `resolve(cover_id)`: Adjudicates the incident against the dual public status URLs on or after `resolve_after`.
+- `timeout_refund(cover_id)`: Returns the reserved premium to the customer on or after `refund_after` (which is stored as `resolve_after` plus one UTC day) if the cover is still active.
+- `get_cover(cover_id)` / `get_policy(policy_id)`: Returns stored cover details including parties, dates, amounts, status, verdict, and funds disposition.
+- `can_resolve(cover_id)`: Returns whether resolution and timeout refund are permitted at the current UTC time.
+- `get_cover_count()` / `get_policy_count()`: Returns the total number of covers created.
+- `get_reserved_premiums()`: Returns the total reserved premium balance currently held in active covers.
 
-`resolve_after` is the first day consensus may adjudicate. `refund_after` is the next UTC day. `timeout_refund` is not callable on the day resolution first opens.
+## Operations
 
-## How it works
-
-1. The customer calls `buy_cover` with the monthly premium attached.
-2. Dates are checked as real calendar dates, then ordered.
-3. The policy is stored `ACTIVE` with the premium `RESERVED`.
-4. On or after `resolve_after`, anyone may call `resolve(policy_id)`.
-5. Both pages are read. A stable verdict is `YES`, `NO`, `UNKNOWN`, or `DISAGREE`.
-6. Outcomes:
-   - `YES`: customer receives the credit. Any leftover premium goes to the provider.
-   - `NO`: provider keeps the premium.
-   - `UNKNOWN` or `DISAGREE`: policy stays `ACTIVE`. Funds stay reserved.
-7. On or after `refund_after`, if the policy is still `ACTIVE`, anyone may call `timeout_refund(policy_id)`. The premium returns to the customer once.
-
-## Validation
-
-- `period_start`, `period_end`, `incident_date`, and `resolve_after` must be real `YYYY-MM-DD` dates before they are compared. `2026-02-31` is rejected.
-- `period_end` is on or after `period_start`.
-- `incident_date` falls inside the covered period.
-- `resolve_after` is on or after `incident_date`.
-- `refund_after` is `resolve_after` plus one UTC day. It is stored, not supplied.
-- Customer and provider are different addresses.
-- Premium is greater than zero. Credit is greater than zero and not above the premium.
-- Both status URLs are HTTPS, on the allowlist, and on different hosts.
-
-## Views
-
-- `get_policy(policy_id)` includes `resolve_after` and `refund_after`
-- `get_policy_count()`
-- `get_reserved_premiums()`
-- `can_resolve(policy_id)` returns `allowed` and `timeout_refund_allowed` separately
-
-Statuses: `ACTIVE`, `CREDITED`, `RETAINED`, `REFUNDED`.
-Verdicts: `YES`, `NO`, `UNKNOWN`, `DISAGREE`, `TIMEOUT`.
-
-## Tests
-
-`test/direct/test_sla_outage_credit.py` covers:
-
-- customer cannot be the provider
-- sources must differ
-- credit cannot exceed premium
-- incident date must sit inside the period
-- impossible calendar dates are rejected
-- resolve and timeout are blocked before their dates
-- timeout is blocked on the day resolve first opens
-- timeout after `refund_after` returns the premium once
-- `UNKNOWN` does not pay or keep the premium
+1. **Buy Cover**: Connect wallet on the floor view, input provider address, service name (minimum 12 characters), valid period dates, incident date, resolve after date, credit in GEN, premium in GEN, and two HTTPS allowlisted status URLs from different hostnames.
+2. **Resolve Cover**: Provide cover ID on or after `resolve_after` date to trigger multi-source validator adjudication.
+3. **Return Premium**: Execute timeout refund on or after the day following `resolve_after` if the cover remains active without conclusive settlement.
+4. **Lookup Cover**: Enter cover ID in the lookup panel to retrieve the complete on-chain outage slip and disposition state.

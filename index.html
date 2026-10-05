@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Pharos - Monthly Outage-Credit Cover</title>
+  <meta name="description" content="Pharos is a monthly outage-credit cover on GenLayer StudioNet. A month prepaid. Two status pages must agree.">
+
+  <!-- Early theme and view application before first paint -->
+  <script>
+    (function() {
+      try {
+        var savedTheme = localStorage.getItem('pharos.theme');
+        if (savedTheme === 'light' || savedTheme === 'dark') {
+          document.documentElement.setAttribute('data-theme', savedTheme);
+        }
+        var savedView = localStorage.getItem('ninesbond.view') || localStorage.getItem('pharos.view') || 'cover';
+        var style = document.createElement('style');
+        style.id = 'initial-view-style';
+        if (savedView === 'floor') {
+          style.innerHTML = '#cover-view { display: none !important; } #floor-view { display: flex !important; }';
+        } else {
+          style.innerHTML = '#floor-view { display: none !important; } #cover-view { display: flex !important; }';
+        }
+        document.head.appendChild(style);
+      } catch (_) {}
+    })();
+  </script>
+
+  <link rel="stylesheet" href="static/style.css">
+</head>
+<body>
+
+  <!-- ==================================================================== -->
+  <!-- Public Cover View (#cover-view) -->
+  <!-- ==================================================================== -->
+  <main id="cover-view" class="cover-view-container">
+    <header class="cover-top-bar">
+      <button id="theme-toggle-cover" class="theme-toggle" type="button" aria-label="Toggle theme">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+      </button>
+    </header>
+
+    <section class="cover-main-content">
+      <img src="static/pharos-mark.png" alt="Pharos Mark" class="cover-mark-img">
+      <h1 class="cover-title">Pharos</h1>
+      <p class="cover-headline">A month prepaid. Two status pages must agree.</p>
+      <p class="cover-short-line">If both pages show the incident on the named day, the credit returns. If they do not, the provider keeps the premium. An unresolved cover returns the next day.</p>
+      
+      <div class="cover-contract-bar">
+        <span class="stat-label">Contract</span>
+        <a href="https://explorer-studio.genlayer.com/address/0xDEd88EaA439d726e40570cD92C8A4dfD21119312" target="_blank" rel="noopener noreferrer" class="contract-address-link">0xDEd88EaA439d726e40570cD92C8A4dfD21119312</a>
+      </div>
+
+      <button id="enter-floor" class="btn-enter-floor" type="button">Open Working Cover</button>
+    </section>
+
+    <footer class="cover-footer">
+      <span>GenLayer StudioNet &bull; Chain ID 61999 (0xf22f)</span>
+    </footer>
+  </main>
+
+  <!-- ==================================================================== -->
+  <!-- Working Floor View (#floor-view) -->
+  <!-- ==================================================================== -->
+  <div id="floor-view" class="floor-view-container" hidden>
+    <!-- Top Bar -->
+    <header class="floor-top-bar">
+      <div class="top-bar-left">
+        <img src="static/pharos-mark.png" alt="Pharos" class="floor-logo-img">
+        <span class="floor-brand-name">Pharos</span>
+        <div class="top-bar-stats">
+          <div class="stat-box">
+            <span class="stat-label">Total Covers</span>
+            <span id="stat-cover-count" class="stat-value">0</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-label">Reserved Premiums</span>
+            <span id="stat-reserved-premiums" class="stat-value">0.00 GEN</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="top-bar-right">
+        <span id="wallet-address-pill" class="wallet-address-pill" hidden></span>
+        <button id="connect-wallet" class="btn-primary" type="button">Connect Wallet</button>
+        <button id="disconnect-wallet" class="btn-secondary" type="button" hidden>Disconnect</button>
+        <button id="back-to-cover" class="btn-secondary" type="button">Back to Cover</button>
+        <button id="theme-toggle-floor" class="theme-toggle" type="button" aria-label="Toggle theme">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Workspace -->
+    <div class="floor-workspace">
+      <!-- Side Menu -->
+      <nav class="floor-sidebar" aria-label="Working Cover Navigation">
+        <button id="nav-buy" class="nav-item-btn is-active" type="button" aria-selected="true">Buy Cover</button>
+        <button id="nav-resolve" class="nav-item-btn" type="button" aria-selected="false">Resolve & Return</button>
+        <button id="nav-lookup" class="nav-item-btn" type="button" aria-selected="false">Lookup Cover</button>
+      </nav>
+
+      <!-- Main Stage -->
+      <main class="floor-main-stage">
+        
+        <!-- Panel 1: Buy Cover (#panel-buy) -->
+        <section id="panel-buy" class="floor-panel is-visible">
+          <div class="panel-header">
+            <h2 class="panel-title">Buy Outage Cover</h2>
+            <p class="panel-description">Prepay a month of service coverage with two independent public status monitors.</p>
+          </div>
+
+          <div class="slip-form-container">
+            <form id="form-buy">
+              <div class="form-grid">
+                <div class="form-group full-width">
+                  <label for="buy-provider" class="form-label">Provider Wallet Address</label>
+                  <input id="buy-provider" class="form-input font-mono" type="text" placeholder="0x..." required pattern="^0x[0-9a-fA-F]{40}$">
+                  <span class="form-helper-text">Must be a valid 40-hex address, distinct from your connected account.</span>
+                </div>
+
+                <div class="form-group full-width">
+                  <label for="buy-service" class="form-label">Service Name</label>
+                  <input id="buy-service" class="form-input" type="text" placeholder="e.g. GitHub Actions Enterprise API" required minlength="12">
+                  <span class="form-helper-text">At least 12 characters identifying the infrastructure.</span>
+                </div>
+
+                <div class="form-group">
+                  <label for="buy-period-start" class="form-label">Period Start (UTC)</label>
+                  <input id="buy-period-start" class="form-input" type="date" required value="2026-10-01">
+                </div>
+
+                <div class="form-group">
+                  <label for="buy-period-end" class="form-label">Period End (UTC)</label>
+                  <input id="buy-period-end" class="form-input" type="date" required value="2026-10-31">
+                </div>
+
+                <div class="form-group">
+                  <label for="buy-incident-date" class="form-label">Incident Date (UTC)</label>
+                  <input id="buy-incident-date" class="form-input" type="date" required value="2026-10-15">
+                  <span class="form-helper-text">Must fall within the covered period.</span>
+                </div>
+
+                <div class="form-group">
+                  <label for="buy-resolve-after" class="form-label">Resolve After (UTC)</label>
+                  <input id="buy-resolve-after" class="form-input" type="date" required value="2026-10-31">
+                  <span class="form-helper-text">Adjudication opens on or after this date.</span>
+                </div>
+
+                <div class="form-group">
+                  <label for="buy-premium" class="form-label">Premium (GEN)</label>
+                  <input id="buy-premium" class="form-input font-mono" type="text" placeholder="0.05" required value="0.05">
+                  <span class="form-helper-text">Attached transaction value paid upfront.</span>
+                </div>
+
+                <div class="form-group">
+                  <label for="buy-credit" class="form-label">Credit (GEN)</label>
+                  <input id="buy-credit" class="form-input font-mono" type="text" placeholder="0.05" required value="0.05">
+                  <span class="form-helper-text">Payout amount on confirmed outage (cannot exceed premium).</span>
+                </div>
+
+                <div class="form-group full-width">
+                  <label for="buy-url-a" class="form-label">Status Page Source A</label>
+                  <input id="buy-url-a" class="form-input font-mono" type="url" placeholder="https://status.cloudflare.com/" required value="https://status.cloudflare.com/">
+                </div>
+
+                <div class="form-group full-width">
+                  <label for="buy-url-b" class="form-label">Status Page Source B</label>
+                  <input id="buy-url-b" class="form-input font-mono" type="url" placeholder="https://githubstatus.com/" required value="https://githubstatus.com/">
+                  <span class="form-helper-text">Must be HTTPS, allowlisted, and on a different host from Source A.</span>
+                </div>
+              </div>
+
+              <div class="form-actions">
+                <button id="btn-buy-submit" class="btn-form-submit" type="submit">Submit Cover Purchase</button>
+              </div>
+
+              <div id="buy-error" class="error-banner" hidden></div>
+              <div id="buy-status" class="status-phases-box" hidden></div>
+            </form>
+          </div>
+        </section>
+
+        <!-- Panel 2: Resolve & Return (#panel-resolve) -->
+        <section id="panel-resolve" class="floor-panel" hidden>
+          <div class="panel-header">
+            <h2 class="panel-title">Resolve or Return Premium</h2>
+            <p class="panel-description">Adjudicate an outage slip against dual public status monitors or execute a timeout return.</p>
+          </div>
+
+          <div class="slip-form-container">
+            <div class="form-grid">
+              <div class="form-group full-width">
+                <label for="resolve-cover-id" class="form-label">Cover ID</label>
+                <input id="resolve-cover-id" class="form-input font-mono" type="text" placeholder="e.g. 0" required>
+                <span class="form-helper-text">Return opens the UTC day after resolve_after, and only while the cover is still active.</span>
+              </div>
+            </div>
+
+            <div class="form-actions">
+              <button id="btn-resolve" class="btn-form-submit" type="button">Resolve Cover</button>
+              <button id="btn-timeout-refund" class="btn-secondary" type="button">Return Premium (Timeout Refund)</button>
+            </div>
+
+            <div id="resolve-error" class="error-banner" hidden></div>
+            <div id="resolve-status" class="status-phases-box" hidden></div>
+          </div>
+        </section>
+
+        <!-- Panel 3: Lookup Cover (#panel-lookup) -->
+        <section id="panel-lookup" class="floor-panel" hidden>
+          <div class="panel-header">
+            <h2 class="panel-title">Lookup Outage Cover</h2>
+            <p class="panel-description">Inspect full on-chain status, verdict, dates, and funds disposition for any cover ID.</p>
+          </div>
+
+          <div class="slip-form-container">
+            <form id="form-lookup">
+              <div class="form-grid">
+                <div class="form-group full-width">
+                  <label for="lookup-cover-id" class="form-label">Cover ID</label>
+                  <input id="lookup-cover-id" class="form-input font-mono" type="text" placeholder="e.g. 0" required>
+                </div>
+              </div>
+
+              <div class="form-actions">
+                <button id="btn-lookup-submit" class="btn-form-submit" type="submit">Look Up Cover</button>
+              </div>
+
+              <div id="lookup-error" class="error-banner" hidden></div>
+            </form>
+          </div>
+
+          <div id="lookup-result-slip" hidden></div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+
+  <!-- GenLayer Browser Client Module -->
+  <script type="module" src="static/genlayer.js"></script>
+  <!-- Main Application Logic -->
+  <script type="module" src="static/app.js"></script>
+</body>
+</html>
