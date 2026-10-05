@@ -18,6 +18,12 @@ Pharos is a monthly outage-credit cover on GenLayer StudioNet. A customer prepay
 - `get_cover_count()` / `get_policy_count()`: Returns the total number of covers created.
 - `get_reserved_premiums()`: Returns the total reserved premium balance currently held in active covers.
 
+## Live cover
+
+- buy_cover `0xb2370a0d6cf80439d02a17cdacf3d72907c2c859b449c58e3a1852cb0f326c06`
+- timeout_refund `0x9ea2d46fa34c45cab0b1dc62c72b5778611f5070a7a1d6c3f73b270b20b60d2e`
+- expected `REFUNDED` / `TIMEOUT` / `PREMIUM_RETURNED_TO_CUSTOMER`
+
 ## Operations
 
 1. **Buy Cover**: Connect wallet on the floor view, input provider address, service name (minimum 12 characters), valid period dates, incident date, resolve after date, credit in GEN, premium in GEN, and two HTTPS allowlisted status URLs from different hostnames.

@@ -27,6 +27,7 @@
     })();
   </script>
 
+  <link rel="icon" type="image/png" href="static/pharos-mark.png">
   <link rel="stylesheet" href="static/style.css">
 </head>
 <body>
@@ -53,10 +54,61 @@
       </div>
 
       <button id="enter-floor" class="btn-enter-floor" type="button">Open Working Cover</button>
+
+      <!-- Steps to Use App -->
+      <div class="cover-section-box">
+        <h2 class="section-heading">How Pharos Works</h2>
+        <div class="steps-grid">
+          <div class="step-card">
+            <div class="step-number">01</div>
+            <div class="step-title">Buy Cover</div>
+            <div class="step-text">Prepay the monthly premium, specify the provider, covered calendar dates, incident date, and two independent status page sources.</div>
+          </div>
+          <div class="step-card">
+            <div class="step-number">02</div>
+            <div class="step-title">Adjudicate</div>
+            <div class="step-text">On or after the resolve date, validators independently check both public status pages to confirm whether the service outage occurred.</div>
+          </div>
+          <div class="step-card">
+            <div class="step-number">03</div>
+            <div class="step-title">Settlement</div>
+            <div class="step-text">Confirmed outages release credit to the customer. Otherwise, the provider receives the premium. Unresolved covers allow timeout return.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Supported Sites -->
+      <div class="cover-section-box">
+        <h2 class="section-heading">Supported Status Page Sources</h2>
+        <div class="hosts-chips-container">
+          <span class="host-badge">status.cloudflare.com</span>
+          <span class="host-badge">githubstatus.com</span>
+          <span class="host-badge">status.aws.amazon.com</span>
+          <span class="host-badge">health.aws.amazon.com</span>
+          <span class="host-badge">statuspage.io</span>
+          <span class="host-badge">status.stripe.com</span>
+          <span class="host-badge">status.openai.com</span>
+          <span class="host-badge">status.hashicorp.com</span>
+          <span class="host-badge">status.digitalocean.com</span>
+          <span class="host-badge">status.gitlab.com</span>
+          <span class="host-badge">status.vercel.com</span>
+          <span class="host-badge">status.slack.com</span>
+          <span class="host-badge">downdetector.com</span>
+          <span class="host-badge">cloudflarestatus.com</span>
+          <span class="host-badge">github.com</span>
+          <span class="host-badge">gitlab.com</span>
+        </div>
+      </div>
     </section>
 
     <footer class="cover-footer">
-      <span>GenLayer StudioNet &bull; Chain ID 61999 (0xf22f)</span>
+      <div class="footer-links">
+        <a href="https://github.com/grindpa/pharos" target="_blank" rel="noopener noreferrer" class="footer-link">GitHub</a>
+        <span class="footer-divider">&bull;</span>
+        <a href="https://www.x.com/0xgrindpa" target="_blank" rel="noopener noreferrer" class="footer-link">Developer X (@0xgrindpa)</a>
+        <span class="footer-divider">&bull;</span>
+        <span class="footer-note">GenLayer StudioNet (Chain ID 61999)</span>
+      </div>
     </footer>
   </main>
 
@@ -82,8 +134,8 @@
       </div>
 
       <div class="top-bar-right">
-        <span id="wallet-address-pill" class="wallet-address-pill" hidden></span>
         <button id="connect-wallet" class="btn-primary" type="button">Connect Wallet</button>
+        <span id="wallet-address-pill" class="wallet-address-pill" hidden></span>
         <button id="disconnect-wallet" class="btn-secondary" type="button" hidden>Disconnect</button>
         <button id="back-to-cover" class="btn-secondary" type="button">Back to Cover</button>
         <button id="theme-toggle-floor" class="theme-toggle" type="button" aria-label="Toggle theme">
