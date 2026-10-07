@@ -1,10 +1,9 @@
 <!DOCTYPE html>
 <html lang="en" data-theme="dark">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<head>  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Pharos - Monthly Outage-Credit Cover</title>
-  <meta name="description" content="Pharos is a monthly outage-credit cover on GenLayer StudioNet. A month prepaid. Two status pages must agree.">
+  <meta name="description" content="Decentralized monthly outage-credit cover on GenLayer StudioNet. Two public status pages must agree.">
 
   <!-- Early theme and view application before first paint -->
   <script>
@@ -32,9 +31,9 @@
 </head>
 <body>
 
-  <!-- ==================================================================== -->
+  <!-- ================================================================== -->
   <!-- Public Cover View (#cover-view) -->
-  <!-- ==================================================================== -->
+  <!-- ================================================================= -->
   <main id="cover-view" class="cover-view-container">
     <header class="cover-top-bar">
       <button id="theme-toggle-cover" class="theme-toggle" type="button" aria-label="Toggle theme">
@@ -46,11 +45,11 @@
       <img src="static/pharos-mark.png" alt="Pharos Mark" class="cover-mark-img">
       <h1 class="cover-title">Pharos</h1>
       <p class="cover-headline">A month prepaid. Two status pages must agree.</p>
-      <p class="cover-short-line">If both pages show the incident on the named day, the credit returns. If they do not, the provider keeps the premium. An unresolved cover returns the next day.</p>
+      <p class="cover-short-line">If both pages show the incident on the named day, the credit returns. If they do not, the provider keeps the premium. Resolve is open from resolve_after until the day before refund_after. Return premium works only after resolve has recorded UNKNOWN or DISAGREE, and only on or after refund_after. A cover with verdict UNRESOLVED cannot be returned. After refund_after, Resolve is closed.</p>
       
       <div class="cover-contract-bar">
         <span class="stat-label">Contract</span>
-        <a href="https://explorer-studio.genlayer.com/address/0xDEd88EaA439d726e40570cD92C8A4dfD21119312" target="_blank" rel="noopener noreferrer" class="contract-address-link">0xDEd88EaA439d726e40570cD92C8A4dfD21119312</a>
+        <a href="https://explorer-studio.genlayer.com/address/0x963F023bad934ef3A77474a445c81Ed2127b20C6" target="_blank" rel="noopener noreferrer" class="contract-address-link">0x963F023bad934ef3A77474a445c81Ed2127b20C6</a>
       </div>
 
       <button id="enter-floor" class="btn-enter-floor" type="button">Open Working Cover</button>
@@ -67,12 +66,12 @@
           <div class="step-card">
             <div class="step-number">02</div>
             <div class="step-title">Adjudicate</div>
-            <div class="step-text">On or after the resolve date, validators independently check both public status pages to confirm whether the service outage occurred.</div>
+            <div class="step-text">Resolve is open from resolve_after until the day before refund_after. Validators independently check dual status monitors. After refund_after, Resolve is closed.</div>
           </div>
           <div class="step-card">
             <div class="step-number">03</div>
             <div class="step-title">Settlement</div>
-            <div class="step-text">Confirmed outages release credit to the customer. Otherwise, the provider receives the premium. Unresolved covers allow timeout return.</div>
+            <div class="step-text">Confirmed outages release credit to the customer. Otherwise, the provider keeps the premium. Return premium works only after resolve has recorded UNKNOWN or DISAGREE, and only on or after refund_after. A cover with verdict UNRESOLVED cannot be returned.</div>
           </div>
         </div>
       </div>
@@ -112,9 +111,10 @@
     </footer>
   </main>
 
-  <!-- ==================================================================== -->
+
+  <!-- ================================================================== -->
   <!-- Working Floor View (#floor-view) -->
-  <!-- ==================================================================== -->
+  <!-- ================================================================= -->
   <div id="floor-view" class="floor-view-container" hidden>
     <!-- Top Bar -->
     <header class="floor-top-bar">
@@ -144,6 +144,7 @@
       </div>
     </header>
 
+
     <!-- Workspace -->
     <div class="floor-workspace">
       <!-- Side Menu -->
@@ -152,6 +153,7 @@
         <button id="nav-resolve" class="nav-item-btn" type="button" aria-selected="false">Resolve & Return</button>
         <button id="nav-lookup" class="nav-item-btn" type="button" aria-selected="false">Lookup Cover</button>
       </nav>
+
 
       <!-- Main Stage -->
       <main class="floor-main-stage">
@@ -172,6 +174,7 @@
                   <span class="form-helper-text">Must be a valid 40-hex address, distinct from your connected account.</span>
                 </div>
 
+
                 <div class="form-group full-width">
                   <label for="buy-service" class="form-label">Service Name</label>
                   <input id="buy-service" class="form-input" type="text" placeholder="e.g. GitHub Actions Enterprise API" required minlength="12">
@@ -183,10 +186,12 @@
                   <input id="buy-period-start" class="form-input" type="date" required value="2026-10-01">
                 </div>
 
+
                 <div class="form-group">
                   <label for="buy-period-end" class="form-label">Period End (UTC)</label>
                   <input id="buy-period-end" class="form-input" type="date" required value="2026-10-31">
                 </div>
+
 
                 <div class="form-group">
                   <label for="buy-incident-date" class="form-label">Incident Date (UTC)</label>
@@ -194,11 +199,13 @@
                   <span class="form-helper-text">Must fall within the covered period.</span>
                 </div>
 
+
                 <div class="form-group">
                   <label for="buy-resolve-after" class="form-label">Resolve After (UTC)</label>
                   <input id="buy-resolve-after" class="form-input" type="date" required value="2026-10-31">
-                  <span class="form-helper-text">Adjudication opens on or after this date.</span>
+                  <span class="form-helper-text">Resolve is open from resolve_after until the day before refund_after. After refund_after, Resolve is closed.</span>
                 </div>
+
 
                 <div class="form-group">
                   <label for="buy-premium" class="form-label">Premium (GEN)</label>
@@ -206,11 +213,13 @@
                   <span class="form-helper-text">Attached transaction value paid upfront.</span>
                 </div>
 
+
                 <div class="form-group">
                   <label for="buy-credit" class="form-label">Credit (GEN)</label>
                   <input id="buy-credit" class="form-input font-mono" type="text" placeholder="0.05" required value="0.05">
                   <span class="form-helper-text">Payout amount on confirmed outage (cannot exceed premium).</span>
                 </div>
+
 
                 <div class="form-group full-width">
                   <label for="buy-url-a" class="form-label">Status Page Source A</label>
@@ -238,15 +247,16 @@
         <section id="panel-resolve" class="floor-panel" hidden>
           <div class="panel-header">
             <h2 class="panel-title">Resolve or Return Premium</h2>
-            <p class="panel-description">Adjudicate an outage slip against dual public status monitors or execute a timeout return.</p>
+            <p class="panel-description">Resolve is open from resolve_after until the day before refund_after. Return premium works only after resolve has recorded UNKNOWN or DISAGREE, and only on or after refund_after.</p>
           </div>
+
 
           <div class="slip-form-container">
             <div class="form-grid">
               <div class="form-group full-width">
                 <label for="resolve-cover-id" class="form-label">Cover ID</label>
                 <input id="resolve-cover-id" class="form-input font-mono" type="text" placeholder="e.g. 0" required>
-                <span class="form-helper-text">Return opens the UTC day after resolve_after, and only while the cover is still active.</span>
+                <span class="form-helper-text">Opens the UTC day after resolve_after, and only after Resolve has recorded UNKNOWN or DISAGREE.</span>
               </div>
             </div>
 
@@ -264,7 +274,7 @@
         <section id="panel-lookup" class="floor-panel" hidden>
           <div class="panel-header">
             <h2 class="panel-title">Lookup Outage Cover</h2>
-            <p class="panel-description">Inspect full on-chain status, verdict, dates, and funds disposition for any cover ID.</p>
+            <p class="panel-description">Inspect full on-chain status, verdict, dates, and funds disposition for any cover ID. If verdict is UNRESOLVED, return is closed.</p>
           </div>
 
           <div class="slip-form-container">
@@ -283,6 +293,7 @@
               <div id="lookup-error" class="error-banner" hidden></div>
             </form>
           </div>
+
 
           <div id="lookup-result-slip" hidden></div>
         </section>

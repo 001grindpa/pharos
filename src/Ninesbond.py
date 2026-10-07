@@ -166,8 +166,14 @@ class SlaOutageCredit(gl.Contract):
             raise gl.vm.UserError(
                 "policy cannot be closed before resolve_after " + policy.resolve_after
             )
+        if today >= policy.refund_after:
+            raise gl.vm.UserError(
+                "resolve is closed; use timeout_refund after a recorded disagreement"
+            )
 
     def _ensure_refundable(self, policy: Policy) -> None:
+        if policy.verdict not in ("UNKNOWN", "DISAGREE"):
+            raise gl.vm.UserError("timeout_refund requires a recorded UNKNOWN or DISAGREE")
         today = _today_utc()
         if today < policy.refund_after:
             raise gl.vm.UserError(
@@ -427,15 +433,17 @@ Rules:
         policy = self._get(policy_id)
         today = _today_utc()
         active = policy.status == "ACTIVE"
+        recorded = policy.verdict in ("UNKNOWN", "DISAGREE")
         return json.dumps(
             {
                 "status": policy.status,
                 "incident_date": policy.incident_date,
                 "resolve_after": policy.resolve_after,
                 "refund_after": policy.refund_after,
+                "verdict": policy.verdict,
                 "now_utc": today,
-                "allowed": active and today >= policy.resolve_after,
-                "timeout_refund_allowed": active and today >= policy.refund_after,
+                "allowed": active and today >= policy.resolve_after and today < policy.refund_after,
+                "timeout_refund_allowed": active and recorded and today >= policy.refund_after,
             },
             sort_keys=True,
         )

@@ -6,7 +6,12 @@
 // ============================================================================
 // Constants & Configuration
 // ============================================================================
-export const CONTRACT_ADDRESS = "0xDEd88EaA439d726e40570cD92C8A4dfD21119312";
+export const CONTRACT_ADDRESS =
+  typeof window !== "undefined"
+    ? "0x963F023bad934ef3A77474a445c81Ed2127b20C6"
+    : typeof process !== "undefined" && process.env?.CONTRACT_ADDRESS
+      ? process.env.CONTRACT_ADDRESS
+      : "0xDEd88EaA439d726e40570cD92C8A4dfD21119312";
 export const CHAIN_ID = 61999;
 export const CHAIN_ID_HEX = "0xf22f";
 export const RPC_ENDPOINT = "https://studio.genlayer.com/api";
@@ -456,11 +461,27 @@ export async function readContractMethod(methodName, args = []) {
         args
       });
     }
+    if (methodName === "get_policy" && ABI.some(i => i.name === "get_cover")) {
+      return await state.client.readContract({
+        address: CONTRACT_ADDRESS,
+        abi: ABI,
+        functionName: "get_cover",
+        args
+      });
+    }
     if (methodName === "get_cover_count" && ABI.some(i => i.name === "get_policy_count")) {
       return await state.client.readContract({
         address: CONTRACT_ADDRESS,
         abi: ABI,
         functionName: "get_policy_count",
+        args
+      });
+    }
+    if (methodName === "get_policy_count" && ABI.some(i => i.name === "get_cover_count")) {
+      return await state.client.readContract({
+        address: CONTRACT_ADDRESS,
+        abi: ABI,
+        functionName: "get_cover_count",
         args
       });
     }
@@ -473,11 +494,11 @@ export async function fetchTopBarStats() {
   let reservedPremiums = "0";
 
   try {
-    const rawCount = await readContractMethod("get_cover_count");
+    const rawCount = await readContractMethod("get_policy_count");
     coverCount = String(rawCount != null ? rawCount : "0");
   } catch (_) {
     try {
-      const rawCount = await readContractMethod("get_policy_count");
+      const rawCount = await readContractMethod("get_cover_count");
       coverCount = String(rawCount != null ? rawCount : "0");
     } catch (_) {}
   }
@@ -500,9 +521,9 @@ export async function fetchCoverDetails(coverId) {
 
   let rawCover;
   try {
-    rawCover = await readContractMethod("get_cover", [idStr]);
-  } catch (_) {
     rawCover = await readContractMethod("get_policy", [idStr]);
+  } catch (_) {
+    rawCover = await readContractMethod("get_cover", [idStr]);
   }
 
   let rawCanResolve = null;
@@ -512,6 +533,11 @@ export async function fetchCoverDetails(coverId) {
 
   let coverData = typeof rawCover === "string" ? JSON.parse(rawCover) : rawCover;
   let canResolveData = typeof rawCanResolve === "string" ? JSON.parse(rawCanResolve) : (rawCanResolve || {});
+
+  const verdict = (coverData.verdict || "UNRESOLVED").toUpperCase();
+  const status = (coverData.status || "ACTIVE").toUpperCase();
+  const allowed = Boolean(canResolveData.allowed);
+  const timeoutRefundAllowed = Boolean(canResolveData.timeout_refund_allowed);
 
   return {
     coverId: idStr,
@@ -528,11 +554,11 @@ export async function fetchCoverDetails(coverId) {
     premium: coverData.premium || "0",
     credit: coverData.credit || "0",
     reserved: coverData.reserved || "0",
-    status: (coverData.status || "ACTIVE").toUpperCase(),
-    verdict: (coverData.verdict || "UNRESOLVED").toUpperCase(),
+    status,
+    verdict,
     funds_disposition: (coverData.funds_disposition || "RESERVED").toUpperCase(),
-    allowed: Boolean(canResolveData.allowed),
-    timeout_refund_allowed: Boolean(canResolveData.timeout_refund_allowed)
+    allowed,
+    timeout_refund_allowed: timeoutRefundAllowed
   };
 }
 
@@ -895,6 +921,27 @@ export async function handleResolveSubmit(isTimeoutRefund = false) {
   const fnName = isTimeoutRefund ? "timeout_refund" : "resolve";
 
   try {
+    try {
+      const details = await fetchCoverDetails(coverId);
+      if (isTimeoutRefund) {
+        if (details.verdict === "UNRESOLVED") {
+          throw new Error("A cover with verdict UNRESOLVED cannot be returned. Return premium works only after resolve has recorded UNKNOWN or DISAGREE, and only on or after refund_after.");
+        }
+        if (!details.timeout_refund_allowed && details.status === "ACTIVE") {
+          throw new Error("Return premium works only after resolve has recorded UNKNOWN or DISAGREE, and only on or after refund_after.");
+        }
+      } else {
+        if (!details.allowed && details.status === "ACTIVE") {
+          throw new Error("Resolve is open from resolve_after until the day before refund_after. After refund_after, Resolve is closed.");
+        }
+      }
+    } catch (checkErr) {
+      if (checkErr.message && (checkErr.message.includes("UNRESOLVED") || checkErr.message.includes("Resolve is open") || checkErr.message.includes("Return premium works"))) {
+        throw checkErr;
+      }
+    }
+
+
     const hash = await executeWriteFlow(
       fnName,
       [coverId],
@@ -960,13 +1007,29 @@ function renderLookupResult(details) {
   const container = document.getElementById("lookup-result-slip");
   if (!container) return;
 
+
   const statusChipClass = `chip-${details.status.toLowerCase()}`;
+
+  const resolveStatusText = details.allowed ? "YES (Open)" : "NO (Closed)";
+  let returnStatusText = "";
+  let returnStatusClass = "text-muted";
+
+  if (details.verdict === "UNRESOLVED") {
+    returnStatusText = "Return is closed: resolve has not recorded a disagreement or unknown result (verdict is UNRESOLVED)";
+    returnStatusClass = "text-muted";
+  } else if (details.timeout_refund_allowed) {
+    returnStatusText = "YES (Open)";
+    returnStatusClass = "text-success";
+  } else {
+    returnStatusText = "NO (Locked)";
+    returnStatusClass = "text-muted";
+  }
 
   container.innerHTML = `
     <div class="outage-slip-card">
       <div class="slip-header">
-        <div class="slip-title">OUTAGE COVER SLIP #${details.coverId}</div>
-        <div class="status-chip ${statusChipClass}">${details.status}</div>
+        <div class="slip-title">OUTAGE COVER SLIP #${escapeHtml(details.coverId)}</div>
+        <div class="status-chip ${statusChipClass}">${escapeHtml(details.status)}</div>
       </div>
       <div class="slip-grid">
         <div class="slip-item">
@@ -975,31 +1038,31 @@ function renderLookupResult(details) {
         </div>
         <div class="slip-item">
           <span class="slip-label">Verdict</span>
-          <span class="slip-value font-mono">${details.verdict}</span>
+          <span class="slip-value font-mono">${escapeHtml(details.verdict)}</span>
         </div>
         <div class="slip-item">
           <span class="slip-label">Customer</span>
-          <span class="slip-value font-mono">${details.customer}</span>
+          <span class="slip-value font-mono">${escapeHtml(details.customer)}</span>
         </div>
         <div class="slip-item">
           <span class="slip-label">Provider</span>
-          <span class="slip-value font-mono">${details.provider}</span>
+          <span class="slip-value font-mono">${escapeHtml(details.provider)}</span>
         </div>
         <div class="slip-item">
           <span class="slip-label">Covered Period</span>
-          <span class="slip-value">${details.period_start} to ${details.period_end}</span>
+          <span class="slip-value">${escapeHtml(details.period_start)} to ${escapeHtml(details.period_end)}</span>
         </div>
         <div class="slip-item">
           <span class="slip-label">Incident Date</span>
-          <span class="slip-value">${details.incident_date}</span>
+          <span class="slip-value">${escapeHtml(details.incident_date)}</span>
         </div>
         <div class="slip-item">
           <span class="slip-label">Resolve After (UTC)</span>
-          <span class="slip-value">${details.resolve_after}</span>
+          <span class="slip-value">${escapeHtml(details.resolve_after)}</span>
         </div>
         <div class="slip-item">
           <span class="slip-label">Refund After (UTC)</span>
-          <span class="slip-value">${details.refund_after}</span>
+          <span class="slip-value">${escapeHtml(details.refund_after)}</span>
         </div>
         <div class="slip-item">
           <span class="slip-label">Premium</span>
@@ -1015,7 +1078,7 @@ function renderLookupResult(details) {
         </div>
         <div class="slip-item">
           <span class="slip-label">Funds Disposition</span>
-          <span class="slip-value font-mono">${details.funds_disposition}</span>
+          <span class="slip-value font-mono">${escapeHtml(details.funds_disposition)}</span>
         </div>
         <div class="slip-item full-width">
           <span class="slip-label">Status Page Source A</span>
@@ -1027,11 +1090,11 @@ function renderLookupResult(details) {
         </div>
         <div class="slip-item">
           <span class="slip-label">Can Resolve Now</span>
-          <span class="slip-value ${details.allowed ? "text-success" : "text-muted"}">${details.allowed ? "YES (Open)" : "NO (Locked)"}</span>
+          <span class="slip-value ${details.allowed ? "text-success" : "text-muted"}">${resolveStatusText}</span>
         </div>
         <div class="slip-item">
-          <span class="slip-label">Timeout Refund Allowed</span>
-          <span class="slip-value ${details.timeout_refund_allowed ? "text-success" : "text-muted"}">${details.timeout_refund_allowed ? "YES (Open)" : "NO (Locked)"}</span>
+          <span class="slip-label">Return Premium (Timeout Refund)</span>
+          <span class="slip-value ${returnStatusClass}">${returnStatusText}</span>
         </div>
       </div>
     </div>
