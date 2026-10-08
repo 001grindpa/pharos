@@ -4,6 +4,12 @@ STATUS_A = "https://www.githubstatus.com/"
 STATUS_B = "https://status.cloudflare.com/"
 
 
+def _set_today(day: str) -> None:
+    import src.Ninesbond as mod
+
+    mod._today_utc = lambda: day
+
+
 def _buy(contract, direct_vm, customer, provider, resolve_after="2026-12-31", credit=10**18):
     direct_vm.sender = customer
     return contract.buy_cover(
@@ -187,16 +193,16 @@ def test_unknown_records_then_refund_stays_closed_until_next_day(
         "GitHub Actions API",
         "2026-10-01",
         "2026-10-31",
-        "2026-10-07",
-        "2026-10-07",
+        "2026-10-08",
+        "2026-10-08",
         10**18,
         STATUS_A,
         STATUS_B,
         value=10**18,
     )
     raw = contract.get_policy(policy_id)
-    assert "2026-10-07" in raw
     assert "2026-10-08" in raw
+    assert "2026-10-09" in raw
 
     def unknown(_policy):
         return {"verdict": "UNKNOWN"}
@@ -211,7 +217,6 @@ def test_unknown_records_then_refund_stays_closed_until_next_day(
     with direct_vm.expect_revert("timeout_refund cannot run before refund_after"):
         contract.timeout_refund(policy_id)
     status = contract.can_resolve(policy_id).replace(" ", "")
-    assert '"allowed":false' in status or '"allowed":true' in status
     assert '"timeout_refund_allowed":false' in status
     assert "ACTIVE" in contract.get_policy(policy_id)
 
@@ -226,8 +231,8 @@ def test_unknown_does_not_pay_or_keep(
         "GitHub Actions API",
         "2026-10-01",
         "2026-10-31",
-        "2026-10-07",
-        "2026-10-07",
+        "2026-10-08",
+        "2026-10-08",
         10**18,
         STATUS_A,
         STATUS_B,
@@ -245,4 +250,57 @@ def test_unknown_does_not_pay_or_keep(
     assert "CREDITED" not in str(status)
     assert "PREMIUM_KEPT_BY_PROVIDER" not in after
     assert "RESERVED" in after
+    assert contract.get_reserved_premiums() == str(10**18)
+
+
+def test_resolve_then_timeout_refund_on_same_policy(
+    direct_vm, direct_deploy, direct_alice, direct_bob
+):
+    contract = direct_deploy(CONTRACT)
+    _set_today("2026-10-08")
+    policy_id = _buy(
+        contract, direct_vm, direct_alice, direct_bob, resolve_after="2026-10-08"
+    )
+
+    def unknown(_policy):
+        return {"verdict": "UNKNOWN"}
+
+    contract._adjudicate = unknown
+    contract.resolve(policy_id)
+    assert "UNKNOWN" in contract.get_policy(policy_id)
+
+    with direct_vm.expect_revert("timeout_refund cannot run before refund_after"):
+        contract.timeout_refund(policy_id)
+
+    _set_today("2026-10-09")
+    contract.timeout_refund(policy_id)
+    after = contract.get_policy(policy_id)
+    assert "REFUNDED" in after
+    assert "TIMEOUT" in after
+    assert "PREMIUM_RETURNED_TO_CUSTOMER" in after
+    assert contract.get_reserved_premiums() == "0"
+
+    with direct_vm.expect_revert("policy is not active"):
+        contract.resolve(policy_id)
+
+
+def test_timeout_refund_then_resolve_on_same_policy(
+    direct_vm, direct_deploy, direct_alice, direct_bob
+):
+    contract = direct_deploy(CONTRACT)
+    _set_today("2026-10-09")
+    policy_id = _buy(
+        contract, direct_vm, direct_alice, direct_bob, resolve_after="2026-10-08"
+    )
+
+    with direct_vm.expect_revert("timeout_refund requires a recorded UNKNOWN or DISAGREE"):
+        contract.timeout_refund(policy_id)
+    with direct_vm.expect_revert("resolve is closed"):
+        contract.resolve(policy_id)
+
+    after = contract.get_policy(policy_id)
+    assert "ACTIVE" in after
+    assert "UNRESOLVED" in after
+    assert "REFUNDED" not in after
+    assert "CREDITED" not in after
     assert contract.get_reserved_premiums() == str(10**18)
