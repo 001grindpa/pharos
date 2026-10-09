@@ -141,7 +141,7 @@ def test_early_resolve_and_timeout_blocked(
 
     with direct_vm.expect_revert("policy cannot be closed before resolve_after"):
         contract.resolve(policy_id)
-    with direct_vm.expect_revert("timeout_refund requires a recorded UNKNOWN or DISAGREE"):
+    with direct_vm.expect_revert("timeout_refund cannot run before refund_after"):
         contract.timeout_refund(policy_id)
 
     after = contract.get_policy(policy_id)
@@ -152,19 +152,25 @@ def test_early_resolve_and_timeout_blocked(
     assert '"timeout_refund_allowed":false' in status
 
 
-def test_timeout_without_adjudication_does_not_pay(
+def test_expired_unresolved_recovers_once(
     direct_vm, direct_deploy, direct_alice, direct_bob
 ):
     contract = direct_deploy(CONTRACT)
     policy_id = _buy(
         contract, direct_vm, direct_alice, direct_bob, resolve_after="2020-01-01"
     )
-    with direct_vm.expect_revert("timeout_refund requires a recorded UNKNOWN or DISAGREE"):
-        contract.timeout_refund(policy_id)
+    with direct_vm.expect_revert("resolve is closed"):
+        contract.resolve(policy_id)
+    contract.timeout_refund(policy_id)
     after = contract.get_policy(policy_id)
-    assert "ACTIVE" in after
-    assert "UNRESOLVED" in after
-    assert contract.get_reserved_premiums() == str(10**18)
+    assert "REFUNDED" in after
+    assert "EXPIRED" in after
+    assert "PREMIUM_RETURNED_TO_CUSTOMER" in after
+    assert contract.get_reserved_premiums() == "0"
+    with direct_vm.expect_revert("only an active policy can be timeout-refunded"):
+        contract.timeout_refund(policy_id)
+    with direct_vm.expect_revert("policy is not active"):
+        contract.resolve(policy_id)
 
 
 def test_resolve_closed_after_refund_deadline(
@@ -193,16 +199,16 @@ def test_unknown_records_then_refund_stays_closed_until_next_day(
         "GitHub Actions API",
         "2026-10-01",
         "2026-10-31",
-        "2026-10-08",
-        "2026-10-08",
+        "2026-10-09",
+        "2026-10-09",
         10**18,
         STATUS_A,
         STATUS_B,
         value=10**18,
     )
     raw = contract.get_policy(policy_id)
-    assert "2026-10-08" in raw
     assert "2026-10-09" in raw
+    assert "2026-10-10" in raw
 
     def unknown(_policy):
         return {"verdict": "UNKNOWN"}
@@ -231,8 +237,8 @@ def test_unknown_does_not_pay_or_keep(
         "GitHub Actions API",
         "2026-10-01",
         "2026-10-31",
-        "2026-10-08",
-        "2026-10-08",
+        "2026-10-09",
+        "2026-10-09",
         10**18,
         STATUS_A,
         STATUS_B,
@@ -253,13 +259,44 @@ def test_unknown_does_not_pay_or_keep(
     assert contract.get_reserved_premiums() == str(10**18)
 
 
+def test_yes_settles_once(direct_vm, direct_deploy, direct_alice, direct_bob):
+    contract = direct_deploy(CONTRACT)
+    direct_vm.sender = direct_alice
+    policy_id = contract.buy_cover(
+        str(direct_bob),
+        "GitHub Actions API",
+        "2026-10-01",
+        "2026-10-31",
+        "2026-10-09",
+        "2026-10-09",
+        10**18,
+        STATUS_A,
+        STATUS_B,
+        value=10**18,
+    )
+
+    def yes(_policy):
+        return {"verdict": "YES"}
+
+    contract._adjudicate = yes
+    contract.resolve(policy_id)
+    after = contract.get_policy(policy_id)
+    assert "CREDITED" in after
+    assert "CREDIT_PAID_TO_CUSTOMER" in after
+    assert contract.get_reserved_premiums() == "0"
+    with direct_vm.expect_revert("policy is not active"):
+        contract.resolve(policy_id)
+    with direct_vm.expect_revert("only an active policy can be timeout-refunded"):
+        contract.timeout_refund(policy_id)
+
+
 def test_resolve_then_timeout_refund_on_same_policy(
     direct_vm, direct_deploy, direct_alice, direct_bob
 ):
     contract = direct_deploy(CONTRACT)
-    _set_today("2026-10-08")
+    _set_today("2026-10-09")
     policy_id = _buy(
-        contract, direct_vm, direct_alice, direct_bob, resolve_after="2026-10-08"
+        contract, direct_vm, direct_alice, direct_bob, resolve_after="2026-10-09"
     )
 
     def unknown(_policy):
@@ -272,7 +309,7 @@ def test_resolve_then_timeout_refund_on_same_policy(
     with direct_vm.expect_revert("timeout_refund cannot run before refund_after"):
         contract.timeout_refund(policy_id)
 
-    _set_today("2026-10-09")
+    _set_today("2026-10-10")
     contract.timeout_refund(policy_id)
     after = contract.get_policy(policy_id)
     assert "REFUNDED" in after
@@ -282,25 +319,26 @@ def test_resolve_then_timeout_refund_on_same_policy(
 
     with direct_vm.expect_revert("policy is not active"):
         contract.resolve(policy_id)
+    with direct_vm.expect_revert("only an active policy can be timeout-refunded"):
+        contract.timeout_refund(policy_id)
 
 
 def test_timeout_refund_then_resolve_on_same_policy(
     direct_vm, direct_deploy, direct_alice, direct_bob
 ):
     contract = direct_deploy(CONTRACT)
-    _set_today("2026-10-09")
+    _set_today("2026-10-10")
     policy_id = _buy(
-        contract, direct_vm, direct_alice, direct_bob, resolve_after="2026-10-08"
+        contract, direct_vm, direct_alice, direct_bob, resolve_after="2026-10-09"
     )
 
-    with direct_vm.expect_revert("timeout_refund requires a recorded UNKNOWN or DISAGREE"):
-        contract.timeout_refund(policy_id)
-    with direct_vm.expect_revert("resolve is closed"):
-        contract.resolve(policy_id)
-
+    contract.timeout_refund(policy_id)
     after = contract.get_policy(policy_id)
-    assert "ACTIVE" in after
-    assert "UNRESOLVED" in after
-    assert "REFUNDED" not in after
-    assert "CREDITED" not in after
-    assert contract.get_reserved_premiums() == str(10**18)
+    assert "REFUNDED" in after
+    assert "EXPIRED" in after
+    assert contract.get_reserved_premiums() == "0"
+
+    with direct_vm.expect_revert("policy is not active"):
+        contract.resolve(policy_id)
+    with direct_vm.expect_revert("only an active policy can be timeout-refunded"):
+        contract.timeout_refund(policy_id)

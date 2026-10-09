@@ -20,6 +20,8 @@ const {
   ensureWalletReady,
   executeWriteFlow,
   updateClient,
+  fetchCoverDetails,
+  fetchTopBarStats,
 } = app;
 
 if (!state) {
@@ -36,12 +38,13 @@ describe("Pharos", () => {
   });
 
   it("exports required constants and state", () => {
-    assert.equal(CONTRACT_ADDRESS, "0xDEd88EaA439d726e40570cD92C8A4dfD21119312");
+    assert.equal(CONTRACT_ADDRESS, "0xADa56B1D824D71ACf22301086c2DEDae52ea74cD");
     assert.equal(CHAIN_ID, 61999);
     assert.ok(Array.isArray(ABI));
     assert.ok(ABI.some((item) => item.name === "buy_cover"));
     assert.ok(ABI.some((item) => item.name === "resolve"));
     assert.ok(ABI.some((item) => item.name === "timeout_refund"));
+    assert.equal(ABI.find((item) => item.name === "timeout_refund").inputs.length, 1);
   });
 
   it("parses stake with bigint only and rejects zero or >18 decimals", () => {
@@ -138,5 +141,59 @@ describe("Pharos", () => {
     assert.equal(writeCalled, true);
     assert.equal(afterAcceptedCalled, true);
     assert.equal(state.inFlight, false);
+  });
+
+  it("uses the neutral read caller for lookup and count reads", async () => {
+    const readPayloads = [];
+    let readClientOptions;
+    globalThis.window = {
+      createClient: (options) => {
+        if (options.account === null) {
+          readClientOptions = options;
+        }
+        return {
+          readContract: async (payload) => {
+            readPayloads.push(payload);
+            if (payload.functionName === "get_policy") {
+              return JSON.stringify({
+                status: "REFUNDED",
+                verdict: "EXPIRED",
+                funds_disposition: "PREMIUM_RETURNED_TO_CUSTOMER",
+              });
+            }
+            if (payload.functionName === "get_policy_count") {
+              return "1";
+            }
+            if (payload.functionName === "get_reserved_premiums") {
+              return "50000000000000000";
+            }
+            if (payload.functionName === "can_resolve") {
+              return JSON.stringify({
+                allowed: false,
+                timeout_refund_allowed: false,
+              });
+            }
+            throw new Error(`Unexpected lookup method: ${payload.functionName}`);
+          },
+        };
+      },
+    };
+
+    try {
+      await updateClient();
+      const details = await fetchCoverDetails("1");
+      assert.equal(details.status, "REFUNDED");
+      assert.equal(details.verdict, "EXPIRED");
+      assert.ok(readClientOptions);
+      const stats = await fetchTopBarStats();
+      assert.equal(stats.coverCount, "1");
+      assert.ok(readPayloads.length >= 4);
+      assert.ok(readPayloads.every(
+        (payload) => payload.account?.address === "0x0000000000000000000000000000000000000000"
+          && !("from" in payload)
+      ));
+    } finally {
+      delete globalThis.window;
+    }
   });
 });

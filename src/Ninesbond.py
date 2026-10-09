@@ -172,13 +172,14 @@ class SlaOutageCredit(gl.Contract):
             )
 
     def _ensure_refundable(self, policy: Policy) -> None:
-        if policy.verdict not in ("UNKNOWN", "DISAGREE"):
-            raise gl.vm.UserError("timeout_refund requires a recorded UNKNOWN or DISAGREE")
         today = _today_utc()
         if today < policy.refund_after:
             raise gl.vm.UserError(
                 "timeout_refund cannot run before refund_after " + policy.refund_after
             )
+        if policy.verdict in ("UNKNOWN", "DISAGREE", "UNRESOLVED"):
+            return
+        raise gl.vm.UserError("timeout_refund requires an unresolved or inconclusive cover")
 
     def _extract_page(
         self, url: str, service: str, incident_date: str, period_start: str, period_end: str
@@ -420,8 +421,9 @@ Rules:
         self._ensure_refundable(policy)
         premium = policy.premium
         customer = policy.customer
+        expired = policy.verdict == "UNRESOLVED"
         policy.status = "REFUNDED"
-        policy.verdict = "TIMEOUT"
+        policy.verdict = "EXPIRED" if expired else "TIMEOUT"
         policy.reserved = u256(0)
         policy.funds_disposition = "PREMIUM_RETURNED_TO_CUSTOMER"
         self.reserved_premiums = self.reserved_premiums - premium
@@ -433,7 +435,7 @@ Rules:
         policy = self._get(policy_id)
         today = _today_utc()
         active = policy.status == "ACTIVE"
-        recorded = policy.verdict in ("UNKNOWN", "DISAGREE")
+        recoverable = policy.verdict in ("UNKNOWN", "DISAGREE", "UNRESOLVED")
         return json.dumps(
             {
                 "status": policy.status,
@@ -443,7 +445,7 @@ Rules:
                 "verdict": policy.verdict,
                 "now_utc": today,
                 "allowed": active and today >= policy.resolve_after and today < policy.refund_after,
-                "timeout_refund_allowed": active and recorded and today >= policy.refund_after,
+                "timeout_refund_allowed": active and recoverable and today >= policy.refund_after,
             },
             sort_keys=True,
         )

@@ -6,16 +6,15 @@
 // ============================================================================
 // Constants & Configuration
 // ============================================================================
-export const CONTRACT_ADDRESS =
-  typeof window !== "undefined"
-    ? "0x963F023bad934ef3A77474a445c81Ed2127b20C6"
-    : typeof process !== "undefined" && process.env?.CONTRACT_ADDRESS
-      ? process.env.CONTRACT_ADDRESS
-      : "0xDEd88EaA439d726e40570cD92C8A4dfD21119312";
+export const CONTRACT_ADDRESS = "0xADa56B1D824D71ACf22301086c2DEDae52ea74cD";
 export const CHAIN_ID = 61999;
 export const CHAIN_ID_HEX = "0xf22f";
 export const RPC_ENDPOINT = "https://studio.genlayer.com/api";
 export const EXPLORER_BASE = "https://explorer-studio.genlayer.com";
+const READ_CALLER = {
+  address: "0x0000000000000000000000000000000000000000",
+  type: "json-rpc"
+};
 
 export const STORAGE_KEYS = {
   VIEW: "ninesbond.view",
@@ -64,14 +63,14 @@ export const ABI = [
     name: "resolve",
     type: "function",
     stateMutability: "nonpayable",
-    inputs: [{ name: "cover_id", type: "string" }],
+    inputs: [{ name: "policy_id", type: "string" }],
     outputs: [{ name: "", type: "string" }]
   },
   {
     name: "timeout_refund",
     type: "function",
     stateMutability: "nonpayable",
-    inputs: [{ name: "cover_id", type: "string" }],
+    inputs: [{ name: "policy_id", type: "string" }],
     outputs: []
   },
   {
@@ -92,14 +91,7 @@ export const ABI = [
     name: "can_resolve",
     type: "function",
     stateMutability: "view",
-    inputs: [{ name: "cover_id", type: "string" }],
-    outputs: [{ name: "", type: "string" }]
-  },
-  {
-    name: "get_cover_count",
-    type: "function",
-    stateMutability: "view",
-    inputs: [],
+    inputs: [{ name: "policy_id", type: "string" }],
     outputs: [{ name: "", type: "string" }]
   },
   {
@@ -126,6 +118,8 @@ export const state = {
   inFlight: false,
   client: null
 };
+
+let readClient = null;
 
 // Discovered EIP-6963 providers map
 const discoveredProviders = new Map();
@@ -310,8 +304,10 @@ export async function ensureWalletReady() {
  */
 export async function updateClient() {
   if (typeof window === "undefined") {
+    readClient = {
+      readContract: async () => "0"
+    };
     const stub = {
-      readContract: async () => "0",
       writeContract: async () => "0x0000000000000000000000000000000000000000000000000000000000000000",
       waitForTransactionReceipt: async () => ({ status: 7, statusName: "FINALIZED" })
     };
@@ -329,6 +325,11 @@ export async function updateClient() {
   if (typeof createClientFn !== "function") {
     return state.client;
   }
+
+  readClient = createClientFn({
+    chain: chainObj,
+    account: null
+  });
 
   if (state.walletAddress && /^0x[0-9a-fA-F]{40}$/.test(state.walletAddress) && state.provider) {
     state.client = createClientFn({
@@ -438,51 +439,38 @@ export async function executeWriteFlow(functionName, args, value = 0n, afterAcce
 // ============================================================================
 
 export async function readContractMethod(methodName, args = []) {
-  if (!state.client || typeof state.client.readContract !== "function") {
+  if (!readClient || typeof readClient.readContract !== "function") {
     await updateClient();
   }
-  if (!state.client || typeof state.client.readContract !== "function") {
+  if (!readClient || typeof readClient.readContract !== "function") {
     throw new Error("Read client not ready");
   }
 
   try {
-    return await state.client.readContract({
+    return await readClient.readContract({
       address: CONTRACT_ADDRESS,
       abi: ABI,
       functionName: methodName,
-      args
+      args,
+      account: READ_CALLER
     });
   } catch (err) {
     if (methodName === "get_cover" && ABI.some(i => i.name === "get_policy")) {
-      return await state.client.readContract({
+      return await readClient.readContract({
         address: CONTRACT_ADDRESS,
         abi: ABI,
         functionName: "get_policy",
-        args
+        args,
+        account: READ_CALLER
       });
     }
     if (methodName === "get_policy" && ABI.some(i => i.name === "get_cover")) {
-      return await state.client.readContract({
+      return await readClient.readContract({
         address: CONTRACT_ADDRESS,
         abi: ABI,
         functionName: "get_cover",
-        args
-      });
-    }
-    if (methodName === "get_cover_count" && ABI.some(i => i.name === "get_policy_count")) {
-      return await state.client.readContract({
-        address: CONTRACT_ADDRESS,
-        abi: ABI,
-        functionName: "get_policy_count",
-        args
-      });
-    }
-    if (methodName === "get_policy_count" && ABI.some(i => i.name === "get_cover_count")) {
-      return await state.client.readContract({
-        address: CONTRACT_ADDRESS,
-        abi: ABI,
-        functionName: "get_cover_count",
-        args
+        args,
+        account: READ_CALLER
       });
     }
     throw err;
@@ -496,12 +484,7 @@ export async function fetchTopBarStats() {
   try {
     const rawCount = await readContractMethod("get_policy_count");
     coverCount = String(rawCount != null ? rawCount : "0");
-  } catch (_) {
-    try {
-      const rawCount = await readContractMethod("get_cover_count");
-      coverCount = String(rawCount != null ? rawCount : "0");
-    } catch (_) {}
-  }
+  } catch (_) {}
 
   try {
     const rawReserved = await readContractMethod("get_reserved_premiums");
@@ -921,24 +904,15 @@ export async function handleResolveSubmit(isTimeoutRefund = false) {
   const fnName = isTimeoutRefund ? "timeout_refund" : "resolve";
 
   try {
-    try {
-      const details = await fetchCoverDetails(coverId);
-      if (isTimeoutRefund) {
-        if (details.verdict === "UNRESOLVED") {
-          throw new Error("A cover with verdict UNRESOLVED cannot be returned. Return premium works only after resolve has recorded UNKNOWN or DISAGREE, and only on or after refund_after.");
-        }
-        if (!details.timeout_refund_allowed && details.status === "ACTIVE") {
-          throw new Error("Return premium works only after resolve has recorded UNKNOWN or DISAGREE, and only on or after refund_after.");
-        }
-      } else {
-        if (!details.allowed && details.status === "ACTIVE") {
-          throw new Error("Resolve is open from resolve_after until the day before refund_after. After refund_after, Resolve is closed.");
-        }
-      }
-    } catch (checkErr) {
-      if (checkErr.message && (checkErr.message.includes("UNRESOLVED") || checkErr.message.includes("Resolve is open") || checkErr.message.includes("Return premium works"))) {
-        throw checkErr;
-      }
+    const details = await fetchCoverDetails(coverId);
+    if (details.status !== "ACTIVE") {
+      throw new Error(`Both Resolve and Return premium are closed after ${details.status}.`);
+    }
+    if (isTimeoutRefund && !details.timeout_refund_allowed) {
+      throw new Error("Return premium opens on refund_after. An unresolved cover can be recovered then. Resolve is closed.");
+    }
+    if (!isTimeoutRefund && !details.allowed) {
+      throw new Error("Resolve is open from resolve_after until the day before refund_after. After refund_after, Resolve is closed.");
     }
 
 
@@ -1010,18 +984,18 @@ function renderLookupResult(details) {
 
   const statusChipClass = `chip-${details.status.toLowerCase()}`;
 
-  const resolveStatusText = details.allowed ? "YES (Open)" : "NO (Closed)";
+  const resolveStatusText = details.status === "ACTIVE" && details.allowed ? "YES (Open)" : "NO (Closed)";
   let returnStatusText = "";
   let returnStatusClass = "text-muted";
 
-  if (details.verdict === "UNRESOLVED") {
-    returnStatusText = "Return is closed: resolve has not recorded a disagreement or unknown result (verdict is UNRESOLVED)";
-    returnStatusClass = "text-muted";
-  } else if (details.timeout_refund_allowed) {
+  if (details.status === "ACTIVE" && details.timeout_refund_allowed) {
     returnStatusText = "YES (Open)";
     returnStatusClass = "text-success";
+  } else if (details.status === "ACTIVE" && details.verdict === "UNRESOLVED") {
+    returnStatusText = `NO (Opens on ${escapeHtml(details.refund_after)}; unresolved returns as EXPIRED)`;
+    returnStatusClass = "text-muted";
   } else {
-    returnStatusText = "NO (Locked)";
+    returnStatusText = "NO (Closed)";
     returnStatusClass = "text-muted";
   }
 

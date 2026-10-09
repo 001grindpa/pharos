@@ -45,11 +45,11 @@
       <img src="static/pharos-mark.png" alt="Pharos Mark" class="cover-mark-img">
       <h1 class="cover-title">Pharos</h1>
       <p class="cover-headline">A month prepaid. Two status pages must agree.</p>
-      <p class="cover-short-line">If both pages show the incident on the named day, the credit returns. If they do not, the provider keeps the premium. Resolve is open from resolve_after until the day before refund_after. Return premium works only after resolve has recorded UNKNOWN or DISAGREE, and only on or after refund_after. A cover with verdict UNRESOLVED cannot be returned. After refund_after, Resolve is closed.</p>
+      <p class="cover-short-line">Confirmed outages release the agreed credit. A NO verdict lets the provider retain the premium. Resolve is open from resolve_after until the day before refund_after. Return premium opens on refund_after. UNKNOWN or DISAGREE returns as TIMEOUT; an unresolved cover returns as EXPIRED. Once a cover is REFUNDED, CREDITED, or RETAINED, both actions stay closed.</p>
       
       <div class="cover-contract-bar">
         <span class="stat-label">Contract</span>
-        <a href="https://explorer-studio.genlayer.com/address/0x963F023bad934ef3A77474a445c81Ed2127b20C6" target="_blank" rel="noopener noreferrer" class="contract-address-link">0x963F023bad934ef3A77474a445c81Ed2127b20C6</a>
+        <a href="https://explorer-studio.genlayer.com/address/0xADa56B1D824D71ACf22301086c2DEDae52ea74cD" target="_blank" rel="noopener noreferrer" class="contract-address-link">0xADa56B1D824D71ACf22301086c2DEDae52ea74cD</a>
       </div>
 
       <button id="enter-floor" class="btn-enter-floor" type="button">Open Working Cover</button>
@@ -66,12 +66,12 @@
           <div class="step-card">
             <div class="step-number">02</div>
             <div class="step-title">Adjudicate</div>
-            <div class="step-text">Resolve is open from resolve_after until the day before refund_after. Validators independently check dual status monitors. After refund_after, Resolve is closed.</div>
+            <div class="step-text">Resolve is open from resolve_after until the day before refund_after. Validators independently check dual status monitors. Return premium opens on refund_after.</div>
           </div>
           <div class="step-card">
             <div class="step-number">03</div>
             <div class="step-title">Settlement</div>
-            <div class="step-text">Confirmed outages release credit to the customer. Otherwise, the provider keeps the premium. Return premium works only after resolve has recorded UNKNOWN or DISAGREE, and only on or after refund_after. A cover with verdict UNRESOLVED cannot be returned.</div>
+            <div class="step-text">Confirmed outages release credit to the customer. A NO verdict lets the provider keep the premium. UNKNOWN or DISAGREE returns as TIMEOUT; an unresolved cover after refund_after returns as EXPIRED.</div>
           </div>
         </div>
       </div>
@@ -247,7 +247,7 @@
         <section id="panel-resolve" class="floor-panel" hidden>
           <div class="panel-header">
             <h2 class="panel-title">Resolve or Return Premium</h2>
-            <p class="panel-description">Resolve is open from resolve_after until the day before refund_after. Return premium works only after resolve has recorded UNKNOWN or DISAGREE, and only on or after refund_after.</p>
+            <p class="panel-description">Resolve is open from resolve_after until the day before refund_after. Return premium opens on refund_after. UNKNOWN or DISAGREE returns as TIMEOUT; an unresolved cover after refund_after returns as EXPIRED.</p>
           </div>
 
 
@@ -256,7 +256,7 @@
               <div class="form-group full-width">
                 <label for="resolve-cover-id" class="form-label">Cover ID</label>
                 <input id="resolve-cover-id" class="form-input font-mono" type="text" placeholder="e.g. 0" required>
-                <span class="form-helper-text">Opens the UTC day after resolve_after, and only after Resolve has recorded UNKNOWN or DISAGREE.</span>
+                <span class="form-helper-text">Opens the UTC day after resolve_after. An unresolved cover can be recovered then. Resolve is closed.</span>
               </div>
             </div>
 
@@ -274,7 +274,7 @@
         <section id="panel-lookup" class="floor-panel" hidden>
           <div class="panel-header">
             <h2 class="panel-title">Lookup Outage Cover</h2>
-            <p class="panel-description">Inspect full on-chain status, verdict, dates, and funds disposition for any cover ID. If verdict is UNRESOLVED, return is closed.</p>
+            <p class="panel-description">Inspect full on-chain status, verdict, dates, and funds disposition for any cover ID. Returned covers show REFUNDED with verdict EXPIRED or TIMEOUT; both actions are closed after REFUNDED, CREDITED, or RETAINED.</p>
           </div>
 
           <div class="slip-form-container">

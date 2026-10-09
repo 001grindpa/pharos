@@ -1,32 +1,40 @@
 # Pharos
 
-Pharos is a monthly outage-credit cover on GenLayer StudioNet. A customer prepays a monthly premium and specifies a target service, a covered calendar period, an incident date, and two independent public status page URLs. If both status sources confirm the incident on or after the resolve date, the agreed credit is paid to the customer and any remaining premium goes to the provider. If the outage is not confirmed, the provider retains the premium. Resolve is open from resolve_after until the day before refund_after. After refund_after, Resolve is closed. Return premium works only after resolve has recorded UNKNOWN or DISAGREE, and only on or after refund_after. A cover with verdict UNRESOLVED cannot be returned.
+Pharos is a monthly outage-credit cover on GenLayer StudioNet. A customer prepays a monthly premium and specifies a target service, a covered calendar period, an incident date, and two independent public status page URLs. Confirmed outages pay the agreed credit to the customer, a NO verdict lets the provider retain the premium, and inconclusive results can recover the premium. Resolve is open from `resolve_after` until the day before `refund_after`. Return premium opens on `refund_after`. UNKNOWN or DISAGREE returns as TIMEOUT; an unresolved cover after `refund_after` returns as EXPIRED. Once a cover is REFUNDED, CREDITED, or RETAINED, both actions are closed.
 
 ## Contract Details
 
 - Chain: GenLayer StudioNet (Chain ID 61999, hex 0xf22f)
-- Contract Address: `0x963F023bad934ef3A77474a445c81Ed2127b20C6`
-- Explorer: [https://explorer-studio.genlayer.com/address/0x963F023bad934ef3A77474a445c81Ed2127b20C6](https://explorer-studio.genlayer.com/address/0x963F023bad934ef3A77474a445c81Ed2127b20C6)
+- Contract Address: `0xADa56B1D824D71ACf22301086c2DEDae52ea74cD`
+- Explorer: [https://explorer-studio.genlayer.com/address/0xADa56B1D824D71ACf22301086c2DEDae52ea74cD](https://explorer-studio.genlayer.com/address/0xADa56B1D824D71ACf22301086c2DEDae52ea74cD)
 
 ## Methods
 
 - `buy_cover(provider, service, period_start, period_end, incident_date, resolve_after, credit, status_url_a, status_url_b)`: Creates and funds an outage cover with the attached premium value.
-- `resolve(policy_id)` / `resolve(cover_id)`: Adjudicates the incident against dual public status URLs. Resolve is open from `resolve_after` until the day before `refund_after`. After `refund_after`, Resolve is closed.
-- `timeout_refund(policy_id)` / `timeout_refund(cover_id)` : Return premium works only after resolve has recorded `UNKNOWN` or `DISAGREE`, and only on or after `refund_after`. A cover with verdict `UNRESOLVED` cannot be returned.
-- `get_policy(policy_id)` / `get_cover(cover_id)`: Returns stored cover details including parties, dates, amounts, status, verdict, and funds disposition.
-- `can_resolve(policy_id)` / `can_resolve(cover_id)`: Returns whether resolution (`allowed`) and timeout refund (`timeout_refund_allowed`) are permitted at current UTC time.
-- `get_policy_count()` / `get_cover_count()`: Returns the total number of covers created.
+- `resolve(policy_id)`: Adjudicates the incident against dual public status URLs. Resolve is open from `resolve_after` until the day before `refund_after`.
+- `timeout_refund(policy_id)`: On or after `refund_after`, returns an unresolved cover as `EXPIRED`, or a cover with verdict `UNKNOWN` / `DISAGREE` as `TIMEOUT`.
+- `get_policy(policy_id)`: Returns stored cover details including parties, dates, amounts, status, verdict, and funds disposition. The frontend retains a `get_cover` lookup fallback for older deployments.
+- `can_resolve(policy_id)`: Returns whether resolution (`allowed`) and timeout refund (`timeout_refund_allowed`) are permitted at current UTC time.
+- `get_policy_count()`: Returns the total number of covers created.
 - `get_reserved_premiums()` : Returns the total reserved premium balance currently held in active covers.
 
-## Live cover
+## Current deployment transactions
 
-- buy_cover `0x7037e79ba3507ed0d9cb354722092033e2e49c112f25bb95ef773585749ab432`
-- resolve `0x380ac79efea47fc36d0df8e951f09a4169871651ceb1936d4dc67109f8efef8f`
-- timeout_refund: after 2026-10-08 UTC, only if the verdict is UNKNOWN or DISAGREE
+### Cover A
+
+- Buy: `0x9055ff977bf3180cdd2cac96392eaadc46b86b5abb855a1ad2246cf1ba781552`
+- Return: `0x1ab19c44c6ae83c161c870f69a5eb7f58aa90071bc02f823c62552694337df1b`
+- Result: `REFUNDED` / `EXPIRED` / `PREMIUM_RETURNED_TO_CUSTOMER`
+
+### Cover B
+
+- Buy: `0x375d11a5842e6559f189d4aff6f89735c936664dc692d1ede78c37f656254c90`
+- Resolve: `0xb6e5a0dd7e771a10767db6fc7de7db1a3bccb1268f1f5b7c9193561e4be1b81f`
+- Result: `ACTIVE` / `UNKNOWN` or `DISAGREE`; return premium is locked until `2026-10-10` UTC.
 
 ## Operations
 
 1. **Buy Cover**: Connect wallet on the floor view, input provider address, service name (minimum 12 characters), valid period dates, incident date, resolve after date, credit in GEN, premium in GEN, and two HTTPS allowlisted status URLs from different hostnames.
-2. **Resolve Cover**: Provide cover ID. Resolve is open from `resolve_after` until the day before `refund_after`. After `refund_after`, Resolve is closed. Do not offer both actions as if they can race.
-3. **Return Premium**: Return premium works only after resolve has recorded UNKNOWN or DISAGREE, and only on or after `refund_after`. A cover with verdict UNRESOLVED cannot be returned. Helper under Return premium: "Opens the UTC day after resolve_after, and only after Resolve has recorded UNKNOWN or DISAGREE."
-4. **Lookup Cover**: Enter cover ID in the lookup panel to retrieve the complete on-chain outage slip, verdict, and disposition state. Lookup must show verdict. If it is UNRESOLVED, say return is closed.
+2. **Resolve Cover**: Provide cover ID. Resolve is open from `resolve_after` through the day before `refund_after`; after that, Resolve is closed.
+3. **Return Premium**: Opens on `refund_after`. UNKNOWN or DISAGREE returns as `TIMEOUT`; an unresolved cover returns as `EXPIRED`. Helper under Return premium: "Opens the UTC day after resolve_after. An unresolved cover can be recovered then. Resolve is closed."
+4. **Lookup Cover**: Enter cover ID in the lookup panel to retrieve the complete on-chain outage slip, verdict, and disposition state. Returned covers show `REFUNDED` with verdict `EXPIRED` or `TIMEOUT`. Both buttons stay closed after `REFUNDED`, `CREDITED`, or `RETAINED`.
